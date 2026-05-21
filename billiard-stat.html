@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0f1e">
+<title>Бильярд</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f1e;
+    --surface: #111827;
+    --surface2: #1a2236;
+    --border: #1e2d47;
+    --accent: #00e5a0;
+    --accent2: #ff6b35;
+    --red: #ff4757;
+    --text: #f0f4ff;
+    --muted: #6b7a99;
+    --win: #00e5a0;
+    --lose: #ff4757;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Golos Text', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    overscroll-behavior: none;
+  }
+
+  /* NAV */
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 100;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 10px 0 8px;
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-family: 'Golos Text', sans-serif; font-size: 10px; font-weight: 500;
+    transition: color .2s;
+  }
+  .nav-btn.active { color: var(--accent); }
+  .nav-btn svg { width: 22px; height: 22px; }
+
+  /* HEADER */
+  .header {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 16px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-title { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 1px; color: var(--text); }
+  .header-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+  /* PAGES */
+  .page { display: none; padding-bottom: calc(70px + env(safe-area-inset-bottom)); min-height: 100dvh; }
+  .page.active { display: block; }
+
+  /* HOME PAGE */
+  .home-hero {
+    background: linear-gradient(135deg, #0d1f3c 0%, #0a0f1e 60%);
+    padding: 20px 16px 24px;
+    position: relative; overflow: hidden;
+  }
+  .home-hero::before {
+    content: '🎱';
+    position: absolute; right: -10px; top: -10px;
+    font-size: 120px; opacity: 0.06;
+  }
+  .hero-wr { font-family: 'Bebas Neue', sans-serif; font-size: 72px; line-height: 1; color: var(--accent); }
+  .hero-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .hero-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 16px; }
+  .hero-stat { background: rgba(255,255,255,.04); border-radius: 10px; padding: 10px; text-align: center; }
+  .hero-stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: var(--text); }
+  .hero-stat-lab { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  .section { padding: 16px; }
+  .section-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+
+  /* STREAK */
+  .streak-card {
+    background: linear-gradient(135deg, var(--surface2), var(--surface));
+    border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; display: flex; align-items: center; gap: 14px;
+  }
+  .streak-icon { font-size: 32px; }
+  .streak-val { font-family: 'Bebas Neue', sans-serif; font-size: 36px; line-height: 1; }
+  .streak-val.win { color: var(--win); }
+  .streak-val.lose { color: var(--lose); }
+  .streak-lab { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* RECENT */
+  .game-row {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px; margin-bottom: 8px;
+    display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px;
+  }
+  .game-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .game-dot.win { background: var(--win); box-shadow: 0 0 6px var(--win); }
+  .game-dot.lose { background: var(--lose); box-shadow: 0 0 6px var(--lose); }
+  .game-opponent { font-weight: 600; font-size: 14px; }
+  .game-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .game-score { font-family: 'Bebas Neue', sans-serif; font-size: 22px; text-align: right; }
+  .game-score.win { color: var(--win); }
+  .game-score.lose { color: var(--lose); }
+  .game-date-right { font-size: 10px; color: var(--muted); text-align: right; }
+
+  /* ADD GAME PAGE */
+  .add-form { padding: 16px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; }
+
+  .seg { display: flex; gap: 6px; flex-wrap: wrap; }
+  .seg-btn {
+    flex: 1; min-width: 80px;
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 10px 6px; text-align: center;
+    font-family: 'Golos Text', sans-serif; font-size: 13px; font-weight: 600; color: var(--muted);
+    cursor: pointer; transition: all .2s;
+  }
+  .seg-btn.active { background: var(--accent); border-color: var(--accent); color: #000; }
+
+  select, input[type=text], input[type=number], input[type=date] {
+    width: 100%; background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; color: var(--text);
+    font-family: 'Golos Text', sans-serif; font-size: 15px;
+    -webkit-appearance: none; appearance: none;
+  }
+  select:focus, input:focus { outline: none; border-color: var(--accent); }
+  option { background: var(--surface); }
+
+  .score-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; }
+  .score-label { text-align: center; font-size: 11px; color: var(--muted); }
+  .score-input-wrap { position: relative; }
+  .score-input-wrap input {
+    text-align: center; font-family: 'Bebas Neue', sans-serif; font-size: 36px;
+    padding: 8px; height: 64px;
+  }
+  .vs-badge { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--muted); text-align: center; }
+
+  .submit-btn {
+    width: 100%; background: var(--accent); border: none; border-radius: 14px;
+    padding: 16px; font-family: 'Bebas Neue', sans-serif; font-size: 22px;
+    color: #000; cursor: pointer; letter-spacing: 1px;
+    transition: opacity .2s, transform .1s;
+    margin-top: 8px;
+  }
+  .submit-btn:active { transform: scale(.98); opacity: .9; }
+
+  .new-opponent-row { display: flex; gap: 8px; margin-top: 8px; }
+  .new-opponent-row input { flex: 1; }
+  .add-opp-btn {
+    background: var(--surface2); border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 12px 16px; color: var(--accent); font-size: 20px; cursor: pointer;
+  }
+
+  /* STATS PAGE */
+  .stat-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); padding: 0 16px; }
+  .stat-tab {
+    padding: 12px 16px 10px; font-size: 13px; font-weight: 600; color: var(--muted);
+    border-bottom: 2px solid transparent; cursor: pointer; background: none; border-top: none; border-left: none; border-right: none;
+    font-family: 'Golos Text', sans-serif; transition: color .2s;
+  }
+  .stat-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .stat-panel { display: none; }
+  .stat-panel.active { display: block; }
+
+  .player-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; margin: 8px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .player-name { font-weight: 700; font-size: 15px; }
+  .player-games { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .player-wr { font-family: 'Bebas Neue', sans-serif; font-size: 28px; }
+  .wr-high { color: var(--win); }
+  .wr-mid { color: #ffd700; }
+  .wr-low { color: var(--lose); }
+
+  .mini-bar { height: 4px; border-radius: 2px; background: var(--border); margin-top: 8px; overflow: hidden; }
+  .mini-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width .5s; }
+
+  /* CHART */
+  .chart-wrap { padding: 16px; }
+  .chart-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  canvas { width: 100% !important; border-radius: 10px; }
+
+  /* HISTORY PAGE */
+  .history-filter { display: flex; gap: 8px; padding: 12px 16px; overflow-x: auto; }
+  .filter-chip {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 20px;
+    padding: 6px 14px; font-size: 12px; font-weight: 600; color: var(--muted);
+    cursor: pointer; white-space: nowrap; transition: all .15s; flex-shrink: 0;
+  }
+  .filter-chip.active { background: var(--accent); border-color: var(--accent); color: #000; }
+
+  .history-list { padding: 0 16px; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px);
+    background: var(--accent); color: #000; border-radius: 12px;
+    padding: 12px 24px; font-weight: 700; font-size: 14px;
+    z-index: 999; transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- HOME PAGE -->
+<div class="page active" id="page-home">
+  <div class="home-hero">
+    <div class="hero-label">Общий Winrate</div>
+    <div class="hero-wr" id="hero-wr">0%</div>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-val" id="hero-total">0</div>
+        <div class="hero-stat-lab">Игр</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-val" id="hero-wins">0</div>
+        <div class="hero-stat-lab">Побед</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-val" id="hero-loses">0</div>
+        <div class="hero-stat-lab">Поражений</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Текущая серия</div>
+    <div class="streak-card">
+      <div class="streak-icon" id="streak-icon">🎱</div>
+      <div>
+        <div class="streak-val" id="streak-val">—</div>
+        <div class="streak-lab" id="streak-lab">нет данных</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Последние игры</div>
+    <div id="recent-list"></div>
+  </div>
+</div>
+
+<!-- ADD PAGE -->
+<div class="page" id="page-add">
+  <div class="header">
+    <div>
+      <div class="header-title">Новая партия</div>
+      <div class="header-sub">Запись результата</div>
+    </div>
+  </div>
+  <div class="add-form">
+    <div class="field">
+      <label>Дата</label>
+      <input type="date" id="inp-date">
+    </div>
+    <div class="field">
+      <label>Соперник</label>
+      <select id="inp-opponent">
+        <option value="">— выбери соперника —</option>
+      </select>
+      <div class="new-opponent-row">
+        <input type="text" id="inp-new-opp" placeholder="Новый соперник...">
+        <button class="add-opp-btn" onclick="addNewOpponent()">+</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Вид игры</label>
+      <div class="seg">
+        <button class="seg-btn active" data-game="Свободная" onclick="selectGame(this)">Свободная</button>
+        <button class="seg-btn" data-game="Комбинированная" onclick="selectGame(this)">Комбин.</button>
+        <button class="seg-btn" data-game="Pool" onclick="selectGame(this)">Pool</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Счёт</label>
+      <div class="score-row">
+        <div>
+          <div class="score-label">Я</div>
+          <div class="score-input-wrap">
+            <input type="number" id="inp-my" min="0" max="30" value="8" inputmode="numeric">
+          </div>
+        </div>
+        <div class="vs-badge">VS</div>
+        <div>
+          <div class="score-label">Соперник</div>
+          <div class="score-input-wrap">
+            <input type="number" id="inp-opp" min="0" max="30" value="0" inputmode="numeric">
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="submit-btn" onclick="saveGame()">💾 СОХРАНИТЬ ПАРТИЮ</button>
+  </div>
+</div>
+
+<!-- STATS PAGE -->
+<div class="page" id="page-stats">
+  <div class="header">
+    <div>
+      <div class="header-title">Статистика</div>
+      <div class="header-sub">Аналитика игр</div>
+    </div>
+  </div>
+  <div class="stat-tabs">
+    <button class="stat-tab active" onclick="switchStatTab('opponents', this)">Соперники</button>
+    <button class="stat-tab" onclick="switchStatTab('games', this)">По игре</button>
+    <button class="stat-tab" onclick="switchStatTab('chart', this)">График</button>
+  </div>
+
+  <div class="stat-panel active" id="panel-opponents">
+    <div style="padding:8px 0" id="opponents-list"></div>
+  </div>
+  <div class="stat-panel" id="panel-games">
+    <div style="padding:16px" id="games-type-stats"></div>
+  </div>
+  <div class="stat-panel" id="panel-chart">
+    <div class="chart-wrap">
+      <div class="chart-title">Winrate по неделям (%)</div>
+      <canvas id="chart-wr" height="200"></canvas>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title">Игр в день (последние 30 дней)</div>
+      <canvas id="chart-games" height="160"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY PAGE -->
+<div class="page" id="page-history">
+  <div class="header">
+    <div>
+      <div class="header-title">История</div>
+      <div class="header-sub" id="hist-count">0 партий</div>
+    </div>
+  </div>
+  <div class="history-filter" id="hist-filter"></div>
+  <div class="history-list" id="hist-list"></div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-btn active" onclick="showPage('home', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+    Главная
+  </button>
+  <button class="nav-btn" onclick="showPage('add', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    Добавить
+  </button>
+  <button class="nav-btn" onclick="showPage('stats', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    Статистика
+  </button>
+  <button class="nav-btn" onclick="showPage('history', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+    История
+  </button>
+</nav>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────
+const STORAGE_KEY = 'billiard_data_clean_v1';
+
+function loadData() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { games: [], opponents: [] }; }
+  catch { return { games: [], opponents: [] }; }
+}
+function saveData(d) { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+
+let db = loadData();
+
+// Clean version — no pre-filled data
+
+// ─── HELPERS ────────────────────────────────────────────────────
+function wr(wins, total) { return total ? Math.round(wins/total*100) : 0; }
+function today() { return new Date().toISOString().slice(0,10); }
+function fmtDate(d) {
+  const [y,m,day] = d.split('-');
+  return `${day}.${m}.${y}`;
+}
+
+let selectedGame = 'Свободная';
+
+// ─── NAVIGATION ─────────────────────────────────────────────────
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'stats') renderStats();
+  if (name === 'history') renderHistory();
+  if (name === 'home') renderHome();
+}
+
+// ─── ADD FORM ───────────────────────────────────────────────────
+function initForm() {
+  document.getElementById('inp-date').value = today();
+  renderOpponentSelect();
+}
+
+function renderOpponentSelect() {
+  const sel = document.getElementById('inp-opponent');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— выбери соперника —</option>';
+  db.opponents.forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o; opt.textContent = o;
+    if (o === cur) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function selectGame(btn) {
+  document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedGame = btn.dataset.game;
+}
+
+function addNewOpponent() {
+  const inp = document.getElementById('inp-new-opp');
+  const name = inp.value.trim();
+  if (!name) return;
+  if (!db.opponents.includes(name)) {
+    db.opponents.push(name);
+    saveData(db);
+  }
+  renderOpponentSelect();
+  document.getElementById('inp-opponent').value = name;
+  inp.value = '';
+  toast('Соперник добавлен!');
+}
+
+function saveGame() {
+  const date = document.getElementById('inp-date').value;
+  const opponent = document.getElementById('inp-opponent').value;
+  const myScore = parseInt(document.getElementById('inp-my').value) || 0;
+  const oppScore = parseInt(document.getElementById('inp-opp').value) || 0;
+
+  if (!date || !opponent) { toast('Заполни дату и соперника!'); return; }
+
+  const game = {
+    id: Date.now(),
+    date,
+    opponent,
+    type: selectedGame,
+    myScore,
+    oppScore,
+    win: myScore > oppScore ? 1 : 0,
+    diff: myScore - oppScore
+  };
+
+  db.games.push(game);
+  saveData(db);
+  renderHome();
+  toast(game.win ? '🏆 Победа записана!' : '📝 Поражение записано');
+
+  // reset score
+  document.getElementById('inp-my').value = 8;
+  document.getElementById('inp-opp').value = 0;
+}
+
+// ─── HOME ────────────────────────────────────────────────────────
+function renderHome() {
+  const games = db.games;
+  const total = games.length;
+  const wins = games.filter(g => g.win).length;
+  const loses = total - wins;
+  const wrPct = wr(wins, total);
+
+  document.getElementById('hero-wr').textContent = wrPct + '%';
+  document.getElementById('hero-total').textContent = total;
+  document.getElementById('hero-wins').textContent = wins;
+  document.getElementById('hero-loses').textContent = loses;
+
+  // Streak
+  let streak = 0;
+  let streakType = null;
+  const sorted = [...games].sort((a,b) => b.date.localeCompare(a.date) || b.id - a.id);
+  for (const g of sorted) {
+    if (streakType === null) { streakType = g.win ? 'win' : 'lose'; streak = 1; }
+    else if ((g.win ? 'win' : 'lose') === streakType) streak++;
+    else break;
+  }
+  const sv = document.getElementById('streak-val');
+  const sl = document.getElementById('streak-lab');
+  const si = document.getElementById('streak-icon');
+  if (streakType) {
+    sv.textContent = streak;
+    sv.className = 'streak-val ' + streakType;
+    sl.textContent = streakType === 'win' ? `победных подряд` : `поражений подряд`;
+    si.textContent = streakType === 'win' ? '🔥' : '💧';
+  }
+
+  // Recent
+  const recent = sorted.slice(0, 8);
+  const el = document.getElementById('recent-list');
+  if (!recent.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎱</div>Нет партий. Добавь первую!</div>'; return; }
+  el.innerHTML = recent.map(g => `
+    <div class="game-row">
+      <div class="game-dot ${g.win?'win':'lose'}"></div>
+      <div>
+        <div class="game-opponent">${g.opponent}</div>
+        <div class="game-meta">${g.type} · ${fmtDate(g.date)}</div>
+      </div>
+      <div>
+        <div class="game-score ${g.win?'win':'lose'}">${g.myScore}:${g.oppScore}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ─── STATS ───────────────────────────────────────────────────────
+function switchStatTab(name, btn) {
+  document.querySelectorAll('.stat-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.stat-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  if (name === 'chart') renderCharts();
+}
+
+function renderStats() {
+  renderOpponentStats();
+  renderGameTypeStats();
+}
+
+function renderOpponentStats() {
+  const map = {};
+  db.games.forEach(g => {
+    if (!map[g.opponent]) map[g.opponent] = { wins: 0, total: 0 };
+    map[g.opponent].total++;
+    if (g.win) map[g.opponent].wins++;
+  });
+  const list = Object.entries(map).sort((a,b) => b[1].total - a[1].total);
+  const el = document.getElementById('opponents-list');
+  if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div>Нет данных</div>'; return; }
+  el.innerHTML = list.map(([name, s]) => {
+    const w = wr(s.wins, s.total);
+    const cls = w >= 70 ? 'wr-high' : w >= 50 ? 'wr-mid' : 'wr-low';
+    return `
+      <div class="player-card">
+        <div>
+          <div class="player-name">${name}</div>
+          <div class="player-games">${s.total} игр · ${s.wins}В / ${s.total-s.wins}П</div>
+          <div class="mini-bar"><div class="mini-bar-fill" style="width:${w}%"></div></div>
+        </div>
+        <div class="player-wr ${cls}">${w}%</div>
+      </div>`;
+  }).join('');
+}
+
+function renderGameTypeStats() {
+  const types = ['Свободная', 'Комбинированная', 'Pool'];
+  const el = document.getElementById('games-type-stats');
+  el.innerHTML = types.map(t => {
+    const games = db.games.filter(g => g.type === t);
+    const total = games.length;
+    const wins = games.filter(g => g.win).length;
+    const w = wr(wins, total);
+    const avgDiff = total ? (games.reduce((s,g) => s + g.diff, 0) / total).toFixed(1) : '—';
+    return `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px">
+        <div style="font-weight:700;font-size:16px;margin-bottom:10px">${t}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+          <div><div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--text)">${total}</div><div style="font-size:11px;color:var(--muted)">Игр</div></div>
+          <div><div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--accent)">${w}%</div><div style="font-size:11px;color:var(--muted)">Winrate</div></div>
+          <div><div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:${avgDiff>0?'var(--win)':'var(--lose)'}">${avgDiff > 0 ? '+' : ''}${avgDiff}</div><div style="font-size:11px;color:var(--muted)">Разница</div></div>
+        </div>
+        ${total ? `<div class="mini-bar" style="margin-top:12px"><div class="mini-bar-fill" style="width:${w}%"></div></div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+// ─── CHARTS ─────────────────────────────────────────────────────
+let chartWr = null, chartGames = null;
+
+function renderCharts() {
+  const sorted = [...db.games].sort((a,b) => a.date.localeCompare(b.date));
+  if (!sorted.length) return;
+
+  // Weekly winrate
+  const weeks = {};
+  sorted.forEach(g => {
+    const d = new Date(g.date);
+    const startOfWeek = new Date(d);
+    startOfWeek.setDate(d.getDate() - d.getDay() + 1);
+    const key = startOfWeek.toISOString().slice(0,10);
+    if (!weeks[key]) weeks[key] = { wins: 0, total: 0 };
+    weeks[key].total++;
+    if (g.win) weeks[key].wins++;
+  });
+  const weekKeys = Object.keys(weeks).sort().slice(-10);
+  const wrData = weekKeys.map(k => wr(weeks[k].wins, weeks[k].total));
+  const wrLabels = weekKeys.map(k => k.slice(5));
+
+  drawChart('chart-wr', chartWr, wrLabels, wrData, 'line', '#00e5a0');
+
+  // Daily games last 30 days
+  const last30 = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    last30.push(d.toISOString().slice(0,10));
+  }
+  const dailyCounts = last30.map(d => db.games.filter(g => g.date === d).length);
+  const dailyLabels = last30.map(d => d.slice(8));
+
+  drawChart('chart-games', chartGames, dailyLabels, dailyCounts, 'bar', '#ff6b35');
+}
+
+function drawChart(id, ref, labels, data, type, color) {
+  const canvas = document.getElementById(id);
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const W = canvas.offsetWidth || 340;
+  const H = canvas.offsetHeight || (id === 'chart-wr' ? 200 : 160);
+  canvas.width = W * 2; canvas.height = H * 2;
+  ctx.scale(2, 2);
+
+  const pad = { top: 20, right: 10, bottom: 30, left: 30 };
+  const w = W - pad.left - pad.right;
+  const h = H - pad.top - pad.bottom;
+
+  const maxVal = Math.max(...data, 1);
+  const minVal = type === 'line' ? Math.min(...data, 0) : 0;
+
+  // Background
+  ctx.fillStyle = '#111827';
+  ctx.beginPath(); ctx.roundRect(0, 0, W, H, 10); ctx.fill();
+
+  // Grid lines
+  ctx.strokeStyle = '#1e2d47'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + h - (h * i / 4);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + w, y); ctx.stroke();
+    ctx.fillStyle = '#6b7a99'; ctx.font = '9px Golos Text';
+    ctx.fillText(Math.round(minVal + (maxVal - minVal) * i / 4), 0, y + 3);
+  }
+
+  const step = w / (labels.length - 1 || 1);
+
+  if (type === 'line') {
+    // Gradient fill
+    const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + h);
+    grad.addColorStop(0, color + '44'); grad.addColorStop(1, color + '00');
+    ctx.beginPath();
+    data.forEach((v, i) => {
+      const x = pad.left + i * step;
+      const y = pad.top + h - h * (v - minVal) / (maxVal - minVal || 1);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.lineTo(pad.left + (data.length-1) * step, pad.top + h);
+    ctx.lineTo(pad.left, pad.top + h);
+    ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    data.forEach((v, i) => {
+      const x = pad.left + i * step;
+      const y = pad.top + h - h * (v - minVal) / (maxVal - minVal || 1);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round'; ctx.stroke();
+
+    // Dots
+    data.forEach((v, i) => {
+      const x = pad.left + i * step;
+      const y = pad.top + h - h * (v - minVal) / (maxVal - minVal || 1);
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2);
+      ctx.fillStyle = color; ctx.fill();
+    });
+  } else {
+    // Bars
+    const bw = Math.max(4, step * 0.6);
+    data.forEach((v, i) => {
+      const x = pad.left + i * step - bw/2;
+      const bh = h * v / (maxVal || 1);
+      const y = pad.top + h - bh;
+      const grad = ctx.createLinearGradient(0, y, 0, y + bh);
+      grad.addColorStop(0, color); grad.addColorStop(1, color + '66');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.roundRect(x, y, bw, bh, [3,3,0,0]); ctx.fill();
+    });
+  }
+
+  // X labels - show every Nth
+  const nth = Math.ceil(labels.length / 8);
+  ctx.fillStyle = '#6b7a99'; ctx.font = '9px Golos Text'; ctx.textAlign = 'center';
+  labels.forEach((l, i) => {
+    if (i % nth === 0 || i === labels.length - 1) {
+      const x = type === 'line' ? pad.left + i * step : pad.left + i * step;
+      ctx.fillText(l, x, H - 8);
+    }
+  });
+}
+
+// ─── HISTORY ────────────────────────────────────────────────────
+let histFilter = 'Все';
+
+function renderHistory() {
+  const filters = ['Все', 'Победы', 'Поражения', 'Свободная', 'Комбинированная', 'Pool'];
+  const filterEl = document.getElementById('hist-filter');
+  filterEl.innerHTML = filters.map(f => `
+    <div class="filter-chip ${f===histFilter?'active':''}" onclick="setHistFilter('${f}')">${f}</div>
+  `).join('');
+
+  let games = [...db.games].sort((a,b) => b.date.localeCompare(a.date) || b.id - a.id);
+  if (histFilter === 'Победы') games = games.filter(g => g.win);
+  else if (histFilter === 'Поражения') games = games.filter(g => !g.win);
+  else if (['Свободная','Комбинированная','Pool'].includes(histFilter)) games = games.filter(g => g.type === histFilter);
+
+  document.getElementById('hist-count').textContent = `${games.length} партий`;
+
+  const el = document.getElementById('hist-list');
+  if (!games.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div>Нет партий</div>'; return; }
+
+  // Group by date
+  const byDate = {};
+  games.forEach(g => {
+    if (!byDate[g.date]) byDate[g.date] = [];
+    byDate[g.date].push(g);
+  });
+
+  el.innerHTML = Object.entries(byDate).map(([date, gs]) => `
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:12px 0 6px">${fmtDate(date)}</div>
+    ${gs.map(g => `
+      <div class="game-row" style="margin-bottom:8px">
+        <div class="game-dot ${g.win?'win':'lose'}"></div>
+        <div>
+          <div class="game-opponent">${g.opponent}</div>
+          <div class="game-meta">${g.type}</div>
+        </div>
+        <div>
+          <div class="game-score ${g.win?'win':'lose'}">${g.myScore}:${g.oppScore}</div>
+          <div class="game-date-right">${g.win?'Победа':'Пораж.'}</div>
+        </div>
+      </div>`).join('')}
+  `).join('');
+}
+
+function setHistFilter(f) {
+  histFilter = f;
+  renderHistory();
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ─── INIT ────────────────────────────────────────────────────────
+initForm();
+renderHome();
+</script>
+</body>
+</html>
