@@ -216,6 +216,15 @@
   }
   .toast.show { transform: translateX(-50%) translateY(0); }
 
+  .modal-box {
+    background: var(--surface);
+    border-radius: 20px 20px 0 0;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+    width: 100%; max-width: 480px;
+    max-height: 90dvh; overflow-y: auto;
+  }
+  .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; margin-bottom: 16px; }
+
   /* scrollbar */
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -226,6 +235,10 @@
 </style>
 </head>
 <body>
+
+<!-- MODAL -->
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:flex-end;justify-content:center;padding:0">
+</div>
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
@@ -757,15 +770,18 @@ function renderHistory() {
   el.innerHTML = Object.entries(byDate).map(([date, gs]) => `
     <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:12px 0 6px">${fmtDate(date)}</div>
     ${gs.map(g => `
-      <div class="game-row" style="margin-bottom:8px">
+      <div class="game-row" style="margin-bottom:8px;cursor:pointer" onclick="openEdit(${g.id})">
         <div class="game-dot ${g.win?'win':'lose'}"></div>
         <div>
           <div class="game-opponent">${g.opponent}</div>
           <div class="game-meta">${g.type}</div>
         </div>
-        <div>
-          <div class="game-score ${g.win?'win':'lose'}">${g.myScore}:${g.oppScore}</div>
-          <div class="game-date-right">${g.win?'Победа':'Пораж.'}</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div>
+            <div class="game-score ${g.win?'win':'lose'}">${g.myScore}:${g.oppScore}</div>
+            <div class="game-date-right">${g.win?'Победа':'Пораж.'}</div>
+          </div>
+          <div style="color:var(--muted);font-size:18px">✏️</div>
         </div>
       </div>`).join('')}
   `).join('');
@@ -774,6 +790,105 @@ function renderHistory() {
 function setHistFilter(f) {
   histFilter = f;
   renderHistory();
+}
+
+// ─── EDIT / DELETE ───────────────────────────────────────────────
+function openEdit(id) {
+  const g = db.games.find(x => x.id === id);
+  if (!g) return;
+
+  // Build opponent options
+  const oppOptions = db.opponents.map(o =>
+    `<option value="${o}" ${o===g.opponent?'selected':''}>${o}</option>`
+  ).join('');
+
+  // Build type buttons
+  const types = ['Свободная','Комбинированная','Pool'];
+  const typeBtns = types.map(t =>
+    `<button class="seg-btn ${t===g.type?'active':''}" data-game="${t}" onclick="editSelectGame(this)" style="flex:1;min-width:70px">${t==='Комбинированная'?'Комбин.':t}</button>`
+  ).join('');
+
+  document.getElementById('modal-overlay').innerHTML = `
+    <div class="modal-box">
+      <div class="modal-title">Редактировать партию</div>
+
+      <div class="field">
+        <label>Дата</label>
+        <input type="date" id="edit-date" value="${g.date}">
+      </div>
+      <div class="field">
+        <label>Соперник</label>
+        <select id="edit-opponent">${oppOptions}</select>
+      </div>
+      <div class="field">
+        <label>Вид игры</label>
+        <div class="seg" id="edit-type-seg">${typeBtns}</div>
+      </div>
+      <div class="field">
+        <label>Счёт</label>
+        <div class="score-row">
+          <div>
+            <div class="score-label">Я</div>
+            <input type="number" id="edit-my" value="${g.myScore}" min="0" max="30" inputmode="numeric" style="text-align:center;font-family:'Bebas Neue',sans-serif;font-size:36px;padding:8px;height:64px">
+          </div>
+          <div class="vs-badge">VS</div>
+          <div>
+            <div class="score-label">Соперник</div>
+            <input type="number" id="edit-opp" value="${g.oppScore}" min="0" max="30" inputmode="numeric" style="text-align:center;font-family:'Bebas Neue',sans-serif;font-size:36px;padding:8px;height:64px">
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button onclick="deleteGame(${id})" style="flex:1;background:var(--red);border:none;border-radius:12px;padding:14px;font-family:'Bebas Neue',sans-serif;font-size:18px;color:#fff;cursor:pointer">🗑 УДАЛИТЬ</button>
+        <button onclick="saveEdit(${id})" style="flex:2;background:var(--accent);border:none;border-radius:12px;padding:14px;font-family:'Bebas Neue',sans-serif;font-size:18px;color:#000;cursor:pointer">✓ СОХРАНИТЬ</button>
+      </div>
+      <button onclick="closeModal()" style="width:100%;margin-top:8px;background:none;border:1px solid var(--border);border-radius:12px;padding:12px;color:var(--muted);font-family:'Golos Text',sans-serif;font-size:14px;cursor:pointer">Отмена</button>
+    </div>
+  `;
+  document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function editSelectGame(btn) {
+  document.querySelectorAll('#edit-type-seg .seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function saveEdit(id) {
+  const idx = db.games.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  const myScore = parseInt(document.getElementById('edit-my').value) || 0;
+  const oppScore = parseInt(document.getElementById('edit-opp').value) || 0;
+  const activeType = document.querySelector('#edit-type-seg .seg-btn.active');
+  db.games[idx] = {
+    ...db.games[idx],
+    date: document.getElementById('edit-date').value,
+    opponent: document.getElementById('edit-opponent').value,
+    type: activeType ? activeType.dataset.game : db.games[idx].type,
+    myScore,
+    oppScore,
+    win: myScore > oppScore ? 1 : 0,
+    diff: myScore - oppScore
+  };
+  saveData(db);
+  closeModal();
+  renderHistory();
+  renderHome();
+  toast('✅ Партия обновлена!');
+}
+
+function deleteGame(id) {
+  if (!confirm('Удалить эту партию?')) return;
+  db.games = db.games.filter(x => x.id !== id);
+  saveData(db);
+  closeModal();
+  renderHistory();
+  renderHome();
+  toast('🗑 Партия удалена');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').style.display = 'none';
 }
 
 // ─── TOAST ────────────────────────────────────────────────────────
